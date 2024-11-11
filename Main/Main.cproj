@@ -214,6 +214,9 @@
     <Compile Include="main_port.c">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="main_project.c">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="main_serial.c">
       <SubType>compile</SubType>
     </Compile>

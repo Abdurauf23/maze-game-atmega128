@@ -42,6 +42,10 @@
 #include "_glcd.h"
 
 // Alphabetically ordered feature toggle macros (uncomment to enable) and function prototypes
+
+#define EMBEDDED_PROJECT
+void main_project(void);
+
 //#define ACCELEROMETER
 void main_accelerometer(void);
 

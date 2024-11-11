@@ -41,7 +41,7 @@ int main (void)
 	#elif defined(GAME_HANGMAN)
 	main_game_hangman();
 	#elif defined(GAME_PUZZLE)
-	main_game_puzzle();	
+	main_game_puzzle();
 	#elif defined(GAME_WORD_PUZZLE)
 	main_game_word_puzzle();
 	#elif defined(GRAPHICS_BASICS)
@@ -118,7 +118,8 @@ int main (void)
 	main_timer_fastpwm();
 	#elif defined(TIMER_NORMAL)
 	main_timer_normal();
-	// Add more conditions here if needed
+	#elif defined(EMBEDDED_PROJECT)
+	main_project();
 	#else
 	// Code to execute when none of the above conditions are met
 	#endif
