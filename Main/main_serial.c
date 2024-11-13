@@ -202,25 +202,6 @@ void InitUART( int baudrate )
 	 UART_TxTail = x;
 	 UART_TxHead = x;
 }
-/* interrupt handlers */
-SIGNAL (USART1_RX_vect)
-{
-	PORTB ^= (1<<0);
-	unsigned char data;
-	unsigned char tmphead;
-	data = UDR1; /* read the received data */
-	/* calculate buffer index */
-	tmphead = ( UART_RxHead + 1 ) & UART_RX_BUFFER_MASK;
-	UART_RxHead = tmphead; /* store new index */
-	if ( tmphead == UART_RxTail )
-	{
-		/* ERROR! Receive buffer overflow */
-	}
-
-	UART_RxBuf[tmphead] = data; /* store received data in buffer */
-	lcd_xy(3,0);
-	lcd_char(data);
-}
   
 SIGNAL (USART1_UDRE_vect)
 {

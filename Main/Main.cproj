@@ -38,7 +38,7 @@
         </dependencies>
       </framework-data>
     </AsfFrameworkConfig>
-    <avrtool>com.atmel.avrdbg.tool.simulator</avrtool>
+    <avrtool>custom</avrtool>
     <ResetRule>0</ResetRule>
     <EraseKey />
     <avrtoolserialnumber />
