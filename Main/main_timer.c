@@ -86,6 +86,7 @@ void main_timer_normal (void)
 void main_timer_counter(void)
 {
 	init_devices();
+	lcd_clear();
 	// Toggle PORTB.7
 	DDRB = 1<<7;
 
@@ -111,6 +112,7 @@ void main_timer_ctc (void)
 {
 	// Graphics
 	init_devices();
+	lcd_clear();
 	lcd_string(0,0,"12345 Hong Jeong");
 	
 	// application

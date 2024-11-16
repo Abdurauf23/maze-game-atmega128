@@ -12,6 +12,7 @@ unsigned int y_position = 6;
 unsigned int mData_ADC3 = 0;
 unsigned int mData_ADC4 = 0;
 unsigned int level = 1;
+unsigned int time_spent_ms = 0;
 uint64_t maze_representation[128];
 
 void move_up(void);
@@ -583,6 +584,9 @@ void draw_win(void)
 
 	lcd_string(3, 2, "Congratulations!");
 	lcd_string(4, 6, "You Won!");
+	char score_text[20];
+	sprintf(score_text, "Time %d seconds", time_spent_ms / 1000);
+	lcd_string(5, 3, score_text);
 	_delay_ms(2000);
 
 	lcd_clear();
@@ -593,19 +597,21 @@ void play_level(void)
 {
 	int won = 0;
 	fill_maze_array();
+	time_spent_ms = 0;
 	while (!won)
 	{
 		draw_maze();
 		GLCD_Circle(x_position, y_position, PLAYER_RADIUS);
 		change_player_position();
 		won = check_win();
-		_delay_ms(100);
+		_delay_ms(200);
 		if ((PINC & (1 << PC3)))
 		{
 			x_position = 60;
 			y_position = 6;
 			return;
 		}
+		time_spent_ms += 510;
 	}
 	draw_win();
 	x_position = 60;
