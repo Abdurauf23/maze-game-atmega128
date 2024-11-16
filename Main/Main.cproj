@@ -193,9 +193,6 @@
     <Compile Include="main_inline.c">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="main_interrupt.c">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="main_iot.c">
       <SubType>compile</SubType>
     </Compile>

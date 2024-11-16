@@ -12,18 +12,12 @@ unsigned int mData_ADC4 = 0;
 unsigned int level = 1;
 uint64_t maze_representation[128];
 
-void init_touch_sensor(void) {
-	DDRC &= ~(1 << PC3); // Set PC3 as input
-	PORTC |= (1 << PC3); // Enable pull-up resistor on PC3
-}
-
 void init_clear(void)
 {
-	cli();
-	Interrupt_init();
-	Uart1_init();
-	init_touch_sensor();
-	sei();
+	// enable touch sensor
+	DDRC &= ~(1 << PC3); // Set PC3 as input
+	PORTC |= (1 << PC3); // Enable pull-up resistor on PC3
+	
 	init_devices();
 	lcd_clear();
 	ScreenBuffer_clear();
@@ -467,6 +461,24 @@ void play_level(void)
 	draw_win();
 	x_position = 60;
 	y_position = 6;
+}
+
+void add_interrupt(void) {
+	EICRA = 1 << ISC01;
+	EICRB = 0x00;
+	EIMSK |= 1 << INT0;
+	sei();
+}
+
+ISR(INT0_vect) {
+	x_position = 60;
+	y_position = 6;
+	mData_ADC3 = 0;
+	mData_ADC4 = 0;
+	level = 1;
+	init_clear();
+	ScreenBuffer_clear();
+	main_project();
 }
 
 void main_project(void)
