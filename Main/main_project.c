@@ -1,9 +1,11 @@
 #include "config.h"
+#include <string.h>
 
 #ifdef EMBEDDED_PROJECT
 
 #define JOYSTICK_DEAD_ZONE 10
 #define PLAYER_RADIUS 2
+#define MAX_BUFFER_SIZE 64
 
 unsigned int x_position = 60;
 unsigned int y_position = 6;
@@ -12,15 +14,74 @@ unsigned int mData_ADC4 = 0;
 unsigned int level = 1;
 uint64_t maze_representation[128];
 
+void move_up(void);
+void move_left(void);
+void move_right(void);
+void move_down(void);
+
+void UART1_init_general_word(void)
+{
+	// Set baud rate (9600 8N1)
+	UBRR1H = (F_CPU / 16 / BAUD - 1) >> 8; // Set the high byte of the UBRR register
+	UBRR1L = (F_CPU / 16 / BAUD - 1);	   // Set the low byte of the UBRR register
+
+	// Enable receiver, transmitter, and receive complete interrupt
+	UCSR1B = (1 << RXEN1) | (1 << TXEN1) | (1 << RXCIE1);
+
+	// Set frame format: 8 data bits, no parity, 1 stop bit (8N1)
+	UCSR1C = (1 << UCSZ11) | (1 << UCSZ10);
+}
+
+// Interrupt Service Routine (ISR) for receiving data
+ISR(USART1_RX_vect)
+{
+	static char buffer[MAX_BUFFER_SIZE];
+	static unsigned char index = 0;
+	unsigned char received_data = UDR1; // Read the received data
+
+	// Check for newline or carriage return (indicating end of word)
+	if (received_data == '\r' || received_data == '\n')
+	{
+		buffer[index] = '\0'; // Null-terminate the string
+		if (strcmp(buffer, "w") == 0)
+		{
+			move_down();
+		}
+		else if (strcmp(buffer, "a") == 0)
+		{
+			move_left();
+		}
+		else if (strcmp(buffer, "d") == 0)
+		{
+			move_right();
+		}
+		else if (strcmp(buffer, "s") == 0)
+		{
+			move_up();
+		}
+		index = 0; // Reset the buffer index
+	}
+	else
+	{
+		// Store the received character into the buffer (if it's not too large)
+		if (index < MAX_BUFFER_SIZE - 1)
+		{
+			buffer[index++] = received_data;
+		}
+	}
+}
+
 void init_clear(void)
 {
 	// enable touch sensor
 	DDRC &= ~(1 << PC3); // Set PC3 as input
 	PORTC |= (1 << PC3); // Enable pull-up resistor on PC3
-	
+
 	init_devices();
 	lcd_clear();
 	ScreenBuffer_clear();
+	UART1_init_general_word();
+	sei();
 }
 
 void show_banner(void)
@@ -61,35 +122,35 @@ void easy(uint64_t num[128])
 	{
 		num[i] = 0;
 		if (i == 0 || i == 1 || i == 126 || i == 127)
-		num[i] = 0xFFFFFFFFFFFFFFFF;
+			num[i] = 0xFFFFFFFFFFFFFFFF;
 		else if (i <= 10 && i >= 2)
-		num[i] = 0xC000000000000000;
+			num[i] = 0xC000000000000000;
 		else if (i <= 12 && i > 10)
-		num[i] = 0xF00FFFFFFFFFFFFF;
+			num[i] = 0xF00FFFFFFFFFFFFF;
 		else if (i <= 30 && i > 12)
-		num[i] = 0xC000000000000003;
+			num[i] = 0xC000000000000003;
 		else if (i <= 32 && i > 30)
-		num[i] = 0xFFFFFFFFFFFFF00F;
+			num[i] = 0xFFFFFFFFFFFFF00F;
 		else if (i <= 50 && i > 32)
-		num[i] = 0xC000000000000003;
+			num[i] = 0xC000000000000003;
 		else if (i <= 52 && i > 50)
-		num[i] = 0xF00FFFFFFFFFFFFF;
+			num[i] = 0xF00FFFFFFFFFFFFF;
 		else if (i <= 70 && i > 52)
-		num[i] = 0xC000000000000003;
+			num[i] = 0xC000000000000003;
 		else if (i <= 72 && i > 70)
-		num[i] = 0xFFFFFFFFFFFFF00F;
+			num[i] = 0xFFFFFFFFFFFFF00F;
 		else if (i <= 90 && i > 72)
-		num[i] = 0xC000000000000003;
+			num[i] = 0xC000000000000003;
 		else if (i <= 92 && i > 90)
-		num[i] = 0xF00FFFFFFFFFFFFF;
+			num[i] = 0xF00FFFFFFFFFFFFF;
 		else if (i <= 110 && i > 92)
-		num[i] = 0xC000000000000003;
+			num[i] = 0xC000000000000003;
 		else if (i <= 112 && i > 110)
-		num[i] = 0xFFFFFFF00FFFFFFF;
+			num[i] = 0xFFFFFFF00FFFFFFF;
 		else if (i <= 117 && i > 112)
-		num[i] = 0xC000000000000003;
+			num[i] = 0xC000000000000003;
 		else if (i <= 125 && i >= 117)
-		num[i] = 0x3;
+			num[i] = 0x3;
 	}
 }
 
@@ -265,76 +326,142 @@ void hard(uint64_t num[128])
 	}
 }
 
-void draw_maze(void) {
+void draw_maze(void)
+{
 	lcd_clear();
 	ScreenBuffer_clear();
-	for (int i = 0; i < 128; i++) {
+	for (int i = 0; i < 128; i++)
+	{
 		uint64_t row = maze_representation[i];
-		
-		if (row & ((uint64_t)1 << 63)) GLCD_Dot(0, i);
-		if (row & ((uint64_t)1 << 62)) GLCD_Dot(1, i);
-		if (row & ((uint64_t)1 << 61)) GLCD_Dot(2, i);
-		if (row & ((uint64_t)1 << 60)) GLCD_Dot(3, i);
-		if (row & ((uint64_t)1 << 59)) GLCD_Dot(4, i);
-		if (row & ((uint64_t)1 << 58)) GLCD_Dot(5, i);
-		if (row & ((uint64_t)1 << 57)) GLCD_Dot(6, i);
-		if (row & ((uint64_t)1 << 56)) GLCD_Dot(7, i);
-		if (row & ((uint64_t)1 << 55)) GLCD_Dot(8, i);
-		if (row & ((uint64_t)1 << 54)) GLCD_Dot(9, i);
-		if (row & ((uint64_t)1 << 53)) GLCD_Dot(10, i);
-		if (row & ((uint64_t)1 << 52)) GLCD_Dot(11, i);
-		if (row & ((uint64_t)1 << 51)) GLCD_Dot(12, i);
-		if (row & ((uint64_t)1 << 50)) GLCD_Dot(13, i);
-		if (row & ((uint64_t)1 << 49)) GLCD_Dot(14, i);
-		if (row & ((uint64_t)1 << 48)) GLCD_Dot(15, i);
-		if (row & ((uint64_t)1 << 47)) GLCD_Dot(16, i);
-		if (row & ((uint64_t)1 << 46)) GLCD_Dot(17, i);
-		if (row & ((uint64_t)1 << 45)) GLCD_Dot(18, i);
-		if (row & ((uint64_t)1 << 44)) GLCD_Dot(19, i);
-		if (row & ((uint64_t)1 << 43)) GLCD_Dot(20, i);
-		if (row & ((uint64_t)1 << 42)) GLCD_Dot(21, i);
-		if (row & ((uint64_t)1 << 41)) GLCD_Dot(22, i);
-		if (row & ((uint64_t)1 << 40)) GLCD_Dot(23, i);
-		if (row & ((uint64_t)1 << 39)) GLCD_Dot(24, i);
-		if (row & ((uint64_t)1 << 38)) GLCD_Dot(25, i);
-		if (row & ((uint64_t)1 << 37)) GLCD_Dot(26, i);
-		if (row & ((uint64_t)1 << 36)) GLCD_Dot(27, i);
-		if (row & ((uint64_t)1 << 35)) GLCD_Dot(28, i);
-		if (row & ((uint64_t)1 << 34)) GLCD_Dot(29, i);
-		if (row & ((uint64_t)1 << 33)) GLCD_Dot(30, i);
-		if (row & ((uint64_t)1 << 32)) GLCD_Dot(31, i);
-		if (row & ((uint64_t)1 << 31)) GLCD_Dot(32, i);
-		if (row & ((uint64_t)1 << 30)) GLCD_Dot(33, i);
-		if (row & ((uint64_t)1 << 29)) GLCD_Dot(34, i);
-		if (row & ((uint64_t)1 << 28)) GLCD_Dot(35, i);
-		if (row & ((uint64_t)1 << 27)) GLCD_Dot(36, i);
-		if (row & ((uint64_t)1 << 26)) GLCD_Dot(37, i);
-		if (row & ((uint64_t)1 << 25)) GLCD_Dot(38, i);
-		if (row & ((uint64_t)1 << 24)) GLCD_Dot(39, i);
-		if (row & ((uint64_t)1 << 23)) GLCD_Dot(40, i);
-		if (row & ((uint64_t)1 << 22)) GLCD_Dot(41, i);
-		if (row & ((uint64_t)1 << 21)) GLCD_Dot(42, i);
-		if (row & ((uint64_t)1 << 20)) GLCD_Dot(43, i);
-		if (row & ((uint64_t)1 << 19)) GLCD_Dot(44, i);
-		if (row & ((uint64_t)1 << 18)) GLCD_Dot(45, i);
-		if (row & ((uint64_t)1 << 17)) GLCD_Dot(46, i);
-		if (row & ((uint64_t)1 << 16)) GLCD_Dot(47, i);
-		if (row & ((uint64_t)1 << 15)) GLCD_Dot(48, i);
-		if (row & ((uint64_t)1 << 14)) GLCD_Dot(49, i);
-		if (row & ((uint64_t)1 << 13)) GLCD_Dot(50, i);
-		if (row & ((uint64_t)1 << 12)) GLCD_Dot(51, i);
-		if (row & ((uint64_t)1 << 11)) GLCD_Dot(52, i);
-		if (row & ((uint64_t)1 << 10)) GLCD_Dot(53, i);
-		if (row & ((uint64_t)1 << 9)) GLCD_Dot(54, i);
-		if (row & ((uint64_t)1 << 8)) GLCD_Dot(55, i);
-		if (row & ((uint64_t)1 << 7)) GLCD_Dot(56, i);
-		if (row & ((uint64_t)1 << 6)) GLCD_Dot(57, i);
-		if (row & ((uint64_t)1 << 5)) GLCD_Dot(58, i);
-		if (row & ((uint64_t)1 << 4)) GLCD_Dot(59, i);
-		if (row & ((uint64_t)1 << 3)) GLCD_Dot(60, i);
-		if (row & ((uint64_t)1 << 2)) GLCD_Dot(61, i);
-		if (row & ((uint64_t)1 << 1)) GLCD_Dot(62, i);
-		if (row & ((uint64_t)1 << 0)) GLCD_Dot(63, i);
+
+		if (row & ((uint64_t)1 << 63))
+			GLCD_Dot(0, i);
+		if (row & ((uint64_t)1 << 62))
+			GLCD_Dot(1, i);
+		if (row & ((uint64_t)1 << 61))
+			GLCD_Dot(2, i);
+		if (row & ((uint64_t)1 << 60))
+			GLCD_Dot(3, i);
+		if (row & ((uint64_t)1 << 59))
+			GLCD_Dot(4, i);
+		if (row & ((uint64_t)1 << 58))
+			GLCD_Dot(5, i);
+		if (row & ((uint64_t)1 << 57))
+			GLCD_Dot(6, i);
+		if (row & ((uint64_t)1 << 56))
+			GLCD_Dot(7, i);
+		if (row & ((uint64_t)1 << 55))
+			GLCD_Dot(8, i);
+		if (row & ((uint64_t)1 << 54))
+			GLCD_Dot(9, i);
+		if (row & ((uint64_t)1 << 53))
+			GLCD_Dot(10, i);
+		if (row & ((uint64_t)1 << 52))
+			GLCD_Dot(11, i);
+		if (row & ((uint64_t)1 << 51))
+			GLCD_Dot(12, i);
+		if (row & ((uint64_t)1 << 50))
+			GLCD_Dot(13, i);
+		if (row & ((uint64_t)1 << 49))
+			GLCD_Dot(14, i);
+		if (row & ((uint64_t)1 << 48))
+			GLCD_Dot(15, i);
+		if (row & ((uint64_t)1 << 47))
+			GLCD_Dot(16, i);
+		if (row & ((uint64_t)1 << 46))
+			GLCD_Dot(17, i);
+		if (row & ((uint64_t)1 << 45))
+			GLCD_Dot(18, i);
+		if (row & ((uint64_t)1 << 44))
+			GLCD_Dot(19, i);
+		if (row & ((uint64_t)1 << 43))
+			GLCD_Dot(20, i);
+		if (row & ((uint64_t)1 << 42))
+			GLCD_Dot(21, i);
+		if (row & ((uint64_t)1 << 41))
+			GLCD_Dot(22, i);
+		if (row & ((uint64_t)1 << 40))
+			GLCD_Dot(23, i);
+		if (row & ((uint64_t)1 << 39))
+			GLCD_Dot(24, i);
+		if (row & ((uint64_t)1 << 38))
+			GLCD_Dot(25, i);
+		if (row & ((uint64_t)1 << 37))
+			GLCD_Dot(26, i);
+		if (row & ((uint64_t)1 << 36))
+			GLCD_Dot(27, i);
+		if (row & ((uint64_t)1 << 35))
+			GLCD_Dot(28, i);
+		if (row & ((uint64_t)1 << 34))
+			GLCD_Dot(29, i);
+		if (row & ((uint64_t)1 << 33))
+			GLCD_Dot(30, i);
+		if (row & ((uint64_t)1 << 32))
+			GLCD_Dot(31, i);
+		if (row & ((uint64_t)1 << 31))
+			GLCD_Dot(32, i);
+		if (row & ((uint64_t)1 << 30))
+			GLCD_Dot(33, i);
+		if (row & ((uint64_t)1 << 29))
+			GLCD_Dot(34, i);
+		if (row & ((uint64_t)1 << 28))
+			GLCD_Dot(35, i);
+		if (row & ((uint64_t)1 << 27))
+			GLCD_Dot(36, i);
+		if (row & ((uint64_t)1 << 26))
+			GLCD_Dot(37, i);
+		if (row & ((uint64_t)1 << 25))
+			GLCD_Dot(38, i);
+		if (row & ((uint64_t)1 << 24))
+			GLCD_Dot(39, i);
+		if (row & ((uint64_t)1 << 23))
+			GLCD_Dot(40, i);
+		if (row & ((uint64_t)1 << 22))
+			GLCD_Dot(41, i);
+		if (row & ((uint64_t)1 << 21))
+			GLCD_Dot(42, i);
+		if (row & ((uint64_t)1 << 20))
+			GLCD_Dot(43, i);
+		if (row & ((uint64_t)1 << 19))
+			GLCD_Dot(44, i);
+		if (row & ((uint64_t)1 << 18))
+			GLCD_Dot(45, i);
+		if (row & ((uint64_t)1 << 17))
+			GLCD_Dot(46, i);
+		if (row & ((uint64_t)1 << 16))
+			GLCD_Dot(47, i);
+		if (row & ((uint64_t)1 << 15))
+			GLCD_Dot(48, i);
+		if (row & ((uint64_t)1 << 14))
+			GLCD_Dot(49, i);
+		if (row & ((uint64_t)1 << 13))
+			GLCD_Dot(50, i);
+		if (row & ((uint64_t)1 << 12))
+			GLCD_Dot(51, i);
+		if (row & ((uint64_t)1 << 11))
+			GLCD_Dot(52, i);
+		if (row & ((uint64_t)1 << 10))
+			GLCD_Dot(53, i);
+		if (row & ((uint64_t)1 << 9))
+			GLCD_Dot(54, i);
+		if (row & ((uint64_t)1 << 8))
+			GLCD_Dot(55, i);
+		if (row & ((uint64_t)1 << 7))
+			GLCD_Dot(56, i);
+		if (row & ((uint64_t)1 << 6))
+			GLCD_Dot(57, i);
+		if (row & ((uint64_t)1 << 5))
+			GLCD_Dot(58, i);
+		if (row & ((uint64_t)1 << 4))
+			GLCD_Dot(59, i);
+		if (row & ((uint64_t)1 << 3))
+			GLCD_Dot(60, i);
+		if (row & ((uint64_t)1 << 2))
+			GLCD_Dot(61, i);
+		if (row & ((uint64_t)1 << 1))
+			GLCD_Dot(62, i);
+		if (row & ((uint64_t)1 << 0))
+			GLCD_Dot(63, i);
 	}
 }
 
@@ -354,18 +481,68 @@ void fill_maze_array(void)
 	}
 	else if (level == 4)
 	{
-		level = (random() % 3) + 1;
+		level = (rand() % 3) + 1;
 		fill_maze_array();
 	}
 }
 
-int get_bit_at(int x, int y) {
-	if (x < 0 || x >= 64 || y < 0 || y >= 128) {
+int get_bit_at(int x, int y)
+{
+	if (x < 0 || x >= 64 || y < 0 || y >= 128)
+	{
 		return 0;
 	}
 	uint64_t row_value = maze_representation[y];
 	int bit_position = 63 - x;
 	return (row_value >> bit_position) & 1;
+}
+
+void move_up()
+{
+	if (!get_bit_at(x_position + 3, y_position - 2) &&
+		!get_bit_at(x_position + 3, y_position - 1) &&
+		!get_bit_at(x_position + 3, y_position) &&
+		!get_bit_at(x_position + 3, y_position - 1) &&
+		!get_bit_at(x_position + 3, y_position + 2))
+	{
+		x_position += 1;
+	}
+}
+
+void move_down()
+{
+	if (!get_bit_at(x_position - 3, y_position - 2) &&
+		!get_bit_at(x_position - 3, y_position - 1) &&
+		!get_bit_at(x_position - 3, y_position) &&
+		!get_bit_at(x_position - 3, y_position - 1) &&
+		!get_bit_at(x_position - 3, y_position + 2))
+	{
+		x_position -= 1;
+	}
+}
+
+void move_right()
+{
+	if (!get_bit_at(x_position + 2, y_position + 3) &&
+		!get_bit_at(x_position + 1, y_position + 3) &&
+		!get_bit_at(x_position, y_position + 3) &&
+		!get_bit_at(x_position - 1, y_position + 3) &&
+		!get_bit_at(x_position - 2, y_position + 3))
+	{
+		y_position += 1;
+	}
+}
+
+void move_left()
+{
+	if (!get_bit_at(x_position + 2, y_position - 3) &&
+		!get_bit_at(x_position + 1, y_position - 3) &&
+		!get_bit_at(x_position, y_position - 3) &&
+		!get_bit_at(x_position - 1, y_position - 3) &&
+		!get_bit_at(x_position - 2, y_position - 3))
+	{
+		y_position -= 1;
+	}
 }
 
 void change_player_position(void)
@@ -375,45 +552,17 @@ void change_player_position(void)
 
 	if (abs(joystick_x - 31) > JOYSTICK_DEAD_ZONE)
 	{
-		if (joystick_x > 31) {
-			if (!get_bit_at(x_position + 3, y_position - 2) && 
-				!get_bit_at(x_position + 3, y_position - 1) && 
-				!get_bit_at(x_position + 3, y_position) && 
-				!get_bit_at(x_position + 3, y_position - 1) && 
-				!get_bit_at(x_position + 3, y_position + 2)) {
-				x_position += 1;
-			}
-		}
-		else {
-			if (!get_bit_at(x_position - 3, y_position - 2) &&
-				!get_bit_at(x_position - 3, y_position - 1) &&
-				!get_bit_at(x_position - 3, y_position) &&
-				!get_bit_at(x_position - 3, y_position - 1) &&
-				!get_bit_at(x_position - 3, y_position + 2)) {
-				x_position -= 1;
-			}
-		}
+		if (joystick_x > 31)
+			move_up();
+		else
+			move_down();
 	}
 	if (abs(joystick_y - 63) > JOYSTICK_DEAD_ZONE)
 	{
-				if (joystick_y > 63) {
-					if (!get_bit_at(x_position + 2, y_position + 3) &&
-						!get_bit_at(x_position + 1, y_position + 3) &&
-						!get_bit_at(x_position,     y_position + 3) &&
-						!get_bit_at(x_position - 1, y_position + 3) &&
-						!get_bit_at(x_position - 2, y_position + 3)) {
-						y_position += 1;
-					}
-				}
-				else {
-					if (!get_bit_at(x_position + 2, y_position - 3) &&
-						!get_bit_at(x_position + 1, y_position - 3) &&
-						!get_bit_at(x_position,     y_position - 3) &&
-						!get_bit_at(x_position - 1, y_position - 3) &&
-						!get_bit_at(x_position - 2, y_position - 3)) {
-						y_position -= 1;
-					}
-				}
+		if (joystick_y > 63)
+			move_right();
+		else
+			move_left();
 	}
 
 	x_position = (x_position > 63) ? 63 : (x_position < 0) ? 0
@@ -463,14 +612,16 @@ void play_level(void)
 	y_position = 6;
 }
 
-void add_interrupt(void) {
+void add_interrupt(void)
+{
 	EICRA = 1 << ISC01;
 	EICRB = 0x00;
 	EIMSK |= 1 << INT0;
 	sei();
 }
 
-ISR(INT0_vect) {
+ISR(INT0_vect)
+{
 	x_position = 60;
 	y_position = 6;
 	mData_ADC3 = 0;
@@ -496,7 +647,7 @@ void main_project(void)
 		if (!(PIND & (1 << PD7)))
 		{
 			play_level();
-		}	
+		}
 		_delay_ms(100);
 	}
 }
