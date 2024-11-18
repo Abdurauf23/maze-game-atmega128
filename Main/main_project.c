@@ -155,54 +155,39 @@ void easy(uint64_t num[128])
 // middle level 
 void middle(uint64_t num[128])
 {
-	if (rand() % 2 == 1)
+	for (int i = 0; i < 128; i++)
 	{
-		for (int i = 0; i < 128; i++)
-		{
-			num[i] = 0;
-			if (i == 0 || i == 1 || i == 126 || i == 127)
-				num[i] = 0xFFFFFFFFFFFFFFFF;
-			else if (i >= 2 && i <= 9)
-				num[i] = 0xC00000300C030000;
-			else if (i >= 10 && i <= 15)
-				num[i] = 0xC00000300C030003;
-			else if (i >= 16 && i <= 17)
-				num[i] = 0xC03FFFF00C0300FF;
-			else if (i >= 18 && i <= 31)
-				num[i] = 0xC000000000030003;
-			else if (i >= 32 && i <= 33)
-				num[i] = 0xC03FFFFFFFFFFC03;
-			else if ((i >= 34 && i <= 47) || (i >= 66 && i <= 79))
-				num[i] = 0xC030000000000003;
-			else if (i >= 48 && i <= 49)
-				num[i] = 0xC03FFFF00003FFFF;
-			else if ((i >= 50 && i <= 63) || (i >= 82 && i <= 95) || (i >= 98 && i <= 111))
-				num[i] = 0xC000003000000003;
-			else if (i >= 64 && i <= 65)
-				num[i] = 0xFFFFC03FFFFF0003;
-			else if ((i >= 80 && i <= 81) || (i >= 112 && i <= 113))
-				num[i] = 0xC03FFFFFFFFF0003;
-			else if (i >= 96 && i <= 97)
-				num[i] = 0xFFFFC0300003FFFF;
-			else if (i >= 114 && i <= 116)
-				num[i] = 0xC000000000000003;
-			else if (i >= 117 && i <= 125)
-				num[i] = 0x3;
-		}
+		num[i] = 0;
+		if (i == 0 || i == 1 || i == 126 || i == 127)
+			num[i] = 0xFFFFFFFFFFFFFFFF;
+		else if (i >= 2 && i <= 9)
+			num[i] = 0xC00000300C030000;
+		else if (i >= 10 && i <= 15)
+			num[i] = 0xC00000300C030003;
+		else if (i >= 16 && i <= 17)
+			num[i] = 0xC03FFFF00C0300FF;
+		else if (i >= 18 && i <= 31)
+			num[i] = 0xC000000000030003;
+		else if (i >= 32 && i <= 33)
+			num[i] = 0xC03FFFFFFFFFFC03;
+		else if ((i >= 34 && i <= 47) || (i >= 66 && i <= 79))
+			num[i] = 0xC030000000000003;
+		else if (i >= 48 && i <= 49)
+			num[i] = 0xC03FFFF00003FFFF;
+		else if ((i >= 50 && i <= 63) || (i >= 82 && i <= 95) || (i >= 98 && i <= 111))
+			num[i] = 0xC000003000000003;
+		else if (i >= 64 && i <= 65)
+			num[i] = 0xFFFFC03FFFFF0003;
+		else if ((i >= 80 && i <= 81) || (i >= 112 && i <= 113))
+			num[i] = 0xC03FFFFFFFFF0003;
+		else if (i >= 96 && i <= 97)
+			num[i] = 0xFFFFC0300003FFFF;
+		else if (i >= 114 && i <= 116)
+			num[i] = 0xC000000000000003;
+		else if (i >= 117 && i <= 125)
+			num[i] = 0x3;
 	}
-	else
-	{
-		for (int i = 0; i < 128; i++)
-		{
-			num[i] = 0;
-			if (i == 0 || i == 1 || i == 126 || i == 127)
-				num[i] = 0xFFFFFFFFFFFFFFFF;
-			else if (i < 117 && i >= 2)
-				num[i] = 0xC0300C0000C03000;
-			else if (i <= 125 && i >= 117)
-				num[i] = 0x0030000300003003;
-		}
-	}
+	
 }
 
 // hard level
@@ -488,7 +473,7 @@ void fill_maze_array(void)
 	}
 }
 
-// this funtion gets bit at the particular position of the maze
+// this function gets bit at the particular position of the maze
 int get_bit_at(int x, int y)
 {
 	if (x < 0 || x >= 64 || y < 0 || y >= 128)
@@ -599,7 +584,7 @@ void draw_win(void)
 	char score_text[20];
 	sprintf(score_text, "Time %d seconds", time_spent_s); // show seconds that spent during round
 	lcd_string(5, 3, score_text);
-	_delay_ms(2000);
+	_delay_ms(5000);
 
 	lcd_clear();
 	ScreenBuffer_clear();
