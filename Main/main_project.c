@@ -5,14 +5,13 @@
 
 #define JOYSTICK_DEAD_ZONE 10
 #define PLAYER_RADIUS 2
-#define MAX_BUFFER_SIZE 64
 
 unsigned int x_position = 60;
 unsigned int y_position = 6;
 unsigned int mData_ADC3 = 0;
 unsigned int mData_ADC4 = 0;
 unsigned int level = 1;
-unsigned int time_spent_ms = 0;
+unsigned int time_spent_s = 0;
 uint64_t maze_representation[128];
 
 void move_up(void);
@@ -22,54 +21,40 @@ void move_down(void);
 
 void UART1_init_general_word(void)
 {
-	// Set baud rate (9600 8N1)
-	UBRR1H = (F_CPU / 16 / BAUD - 1) >> 8; // Set the high byte of the UBRR register
-	UBRR1L = (F_CPU / 16 / BAUD - 1);	   // Set the low byte of the UBRR register
-
-	// Enable receiver, transmitter, and receive complete interrupt
-	UCSR1B = (1 << RXEN1) | (1 << TXEN1) | (1 << RXCIE1);
-
-	// Set frame format: 8 data bits, no parity, 1 stop bit (8N1)
-	UCSR1C = (1 << UCSZ11) | (1 << UCSZ10);
+	UBRR1H = (F_CPU/16/BAUD-1)>>8;		// UBRR
+	UBRR1L = F_CPU/16/BAUD-1;
+	UCSR1B |= (1<<RXCIE1)|(1<<RXEN1)|(1<<TXEN1); // receiver/ transmit interrupt
+	UCSR1C = (1<<UCSZ11)|(1<<UCSZ10);			// character size 8
+	sei();
 }
 
 // Interrupt Service Routine (ISR) for receiving data
 ISR(USART1_RX_vect)
 {
-	static char buffer[MAX_BUFFER_SIZE];
-	static unsigned char index = 0;
-	unsigned char received_data = UDR1; // Read the received data
+	static unsigned char data = 'a';
+	data = UDR1; // Read the received data
 
-	// Check for newline or carriage return (indicating end of word)
-	if (received_data == '\r' || received_data == '\n')
-	{
-		buffer[index] = '\0'; // Null-terminate the string
-		if (strcmp(buffer, "w") == 0)
-		{
-			move_down();
-		}
-		else if (strcmp(buffer, "a") == 0)
-		{
-			move_left();
-		}
-		else if (strcmp(buffer, "d") == 0)
-		{
-			move_right();
-		}
-		else if (strcmp(buffer, "s") == 0)
-		{
-			move_up();
-		}
-		index = 0; // Reset the buffer index
+	if (data == 'w') move_down();
+	else if (data == 'a') move_left();
+	else if (data == 'd') move_right();
+	else if (data == 's') move_up();
+}
+
+void init_timer(void) {
+	// Timer CTC mode setup
+	TCNT0 = 0x00;                             // Timer initial value
+	OCR0 = 0xFF;                              // Set match value
+	TCCR0 = (1 << WGM01) | (1 << CS02) | (1 << CS01) | (1 << CS00); // CTC mode, clock/1024
+	TIMSK = 1 << OCIE0;                       // Enable Compare Match Interrupt
+	sei();                                    // Enable global interrupt
+}
+
+ISR(TIMER0_COMP_vect) {
+	static int i = 0;
+	if (!(i % 60)) {
+		time_spent_s++;
 	}
-	else
-	{
-		// Store the received character into the buffer (if it's not too large)
-		if (index < MAX_BUFFER_SIZE - 1)
-		{
-			buffer[index++] = received_data;
-		}
-	}
+	i++;
 }
 
 void init_clear(void)
@@ -82,6 +67,7 @@ void init_clear(void)
 	lcd_clear();
 	ScreenBuffer_clear();
 	UART1_init_general_word();
+	init_timer();
 	sei();
 }
 
@@ -585,7 +571,7 @@ void draw_win(void)
 	lcd_string(3, 2, "Congratulations!");
 	lcd_string(4, 6, "You Won!");
 	char score_text[20];
-	sprintf(score_text, "Time %d seconds", time_spent_ms / 1000);
+	sprintf(score_text, "Time %d seconds", time_spent_s);
 	lcd_string(5, 3, score_text);
 	_delay_ms(2000);
 
@@ -597,7 +583,7 @@ void play_level(void)
 {
 	int won = 0;
 	fill_maze_array();
-	time_spent_ms = 0;
+	time_spent_s = 0;
 	while (!won)
 	{
 		draw_maze();
@@ -611,7 +597,6 @@ void play_level(void)
 			y_position = 6;
 			return;
 		}
-		time_spent_ms += 510;
 	}
 	draw_win();
 	x_position = 60;

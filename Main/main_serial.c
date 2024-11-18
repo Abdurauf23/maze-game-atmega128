@@ -97,7 +97,11 @@ SIGNAL(USART1_RX_vect)					// Serial ISR
 	data = UDR1;
 	if ((data >= 0x41)&&(data <=0x5A)) data = data + 0x20;
 	else if ((data >= 0x61) && (data <= 0x7A)) data = data - 0x20;
-	UDR1 = data;			
+	init_devices();
+	lcd_clear();
+	char score_text[10];
+	sprintf(score_text, "Level = %d", data);
+	lcd_string(1, 6, score_text);
 }
 #endif
 

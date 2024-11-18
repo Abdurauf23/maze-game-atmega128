@@ -131,7 +131,7 @@ void main_interrupt_timer_ctc (void) {
 
 ISR(TIMER0_COMP_vect) {
 	static int i = 0;
-	if (!(i % 100)) {
+	if (!(i % 60)) {
 		PORTB = ~PORTB;
 	}
 	i++;
