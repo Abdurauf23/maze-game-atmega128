@@ -19,27 +19,29 @@ void move_left(void);
 void move_right(void);
 void move_down(void);
 
+// initialize communication via keyboard
 void UART1_init_general_word(void)
 {
 	UBRR1H = (F_CPU/16/BAUD-1)>>8;		// UBRR
 	UBRR1L = F_CPU/16/BAUD-1;
-	UCSR1B |= (1<<RXCIE1)|(1<<RXEN1)|(1<<TXEN1); // receiver/ transmit interrupt
+	UCSR1B |= (1<<RXCIE1)|(1<<RXEN1)|(1<<TXEN1); // receiver transmit interrupt
 	UCSR1C = (1<<UCSZ11)|(1<<UCSZ10);			// character size 8
 	sei();
 }
 
-// Interrupt Service Routine (ISR) for receiving data
+// Interrupt Service Routine (ISR) for receiving data from keyboard
 ISR(USART1_RX_vect)
 {
 	static unsigned char data = 'a';
 	data = UDR1; // Read the received data
 
-	if (data == 'w') move_down();
-	else if (data == 'a') move_left();
-	else if (data == 'd') move_right();
-	else if (data == 's') move_up();
+	if (data == 'w') move_down(); // go up if 'w' letter is pressed
+	else if (data == 'a') move_left(); // go left if 'a' letter is pressed
+	else if (data == 'd') move_right(); // go right if 'd' letter is pressed
+	else if (data == 's') move_up(); // go down if 's' letter is pressed
 }
 
+// initialize timer 
 void init_timer(void) {
 	// Timer CTC mode setup
 	TCNT0 = 0x00;                             // Timer initial value
@@ -49,31 +51,35 @@ void init_timer(void) {
 	sei();                                    // Enable global interrupt
 }
 
+// Interrupt Service Routine (ISR) for timer
 ISR(TIMER0_COMP_vect) {
 	static int i = 0;
+	// if 'i' is divisible by 60 then increment timer
 	if (!(i % 60)) {
 		time_spent_s++;
 	}
 	i++;
 }
 
+// initialize everything and clear screen
 void init_clear(void)
 {
 	// enable touch sensor
 	DDRC &= ~(1 << PC3); // Set PC3 as input
 	PORTC |= (1 << PC3); // Enable pull-up resistor on PC3
 
-	init_devices();
-	lcd_clear();
-	ScreenBuffer_clear();
-	UART1_init_general_word();
-	init_timer();
-	sei();
+	init_devices(); // init devices, like display
+	lcd_clear(); // clear screen
+	ScreenBuffer_clear(); // clean screen buffer
+	UART1_init_general_word(); // initialize communication via keyboard
+	init_timer(); // initilize timer
+	sei(); // Enable global interrupt
 }
 
+// show banner which is entry screen
 void show_banner(void)
 {
-	lcd_clear();
+	lcd_clear(); // clear screen
 	lcd_string(1, 5, "Maze  Game");
 	lcd_string(3, 6, "U2110077");
 	lcd_string(4, 6, "U2110222");
@@ -81,11 +87,12 @@ void show_banner(void)
 	lcd_string(6, 6, "U2110285");
 }
 
+// show screen with levels
 void draw_levels(void)
 {
 	lcd_clear();
 	char score_text[8];
-	sprintf(score_text, "Level = %d", level);
+	sprintf(score_text, "Level = %d", level); // show Level = 1 or 2 or 3 or 4, depending what is the level value
 	lcd_string(1, 6, score_text);
 
 	lcd_string(3, 4, "1. Easy");
@@ -94,14 +101,18 @@ void draw_levels(void)
 	lcd_string(6, 4, "4. Random");
 }
 
+// change level every time joystick valu echanged
 void check_level(unsigned int data)
 {
+	// if level is equal to 1, then cannot go lower
 	if (data < 10 && level != 1)
 		level--;
+	// if level is equal to 4, then cannot go higher
 	else if (data > 50 && level != 4)
 		level++;
 }
 
+// easy level 
 void easy(uint64_t num[128])
 {
 
@@ -141,6 +152,7 @@ void easy(uint64_t num[128])
 	}
 }
 
+// middle level 
 void middle(uint64_t num[128])
 {
 	if (rand() % 2 == 1)
@@ -193,6 +205,7 @@ void middle(uint64_t num[128])
 	}
 }
 
+// hard level
 void hard(uint64_t num[128])
 {
 	if (rand() % 2 == 1)
@@ -258,51 +271,51 @@ void hard(uint64_t num[128])
 		{
 			num[i] = 0;
 			if (i == 0 || i == 1 || i == 126 || i == 127)
-				num[i] = 0xFFFFFFFFFFFFFFFF; // 1 & 13
+				num[i] = 0xFFFFFFFFFFFFFFFF;
 			else if (i <= 10 && i >= 2)
 				num[i] = 0xC0000C0000003000;
 			else if (i <= 12 && i > 10)
-				num[i] = 0xC0300C03FFFFF003; // 2
+				num[i] = 0xC0300C03FFFFF003;
 			else if (i <= 20 && i > 12)
 				num[i] = 0xC030000300003003;
 			else if (i <= 22 && i > 20)
-				num[i] = 0xC0300FFF00C03003; // 3
+				num[i] = 0xC0300FFF00C03003;
 			else if (i <= 30 && i > 22)
 				num[i] = 0xC030000000C00003;
 			else if (i <= 32 && i > 30)
-				num[i] = 0xC03FFFFFFFFFFFFF; // 4
+				num[i] = 0xC03FFFFFFFFFFFFF;
 			else if (i <= 40 && i > 32)
 				num[i] = 0xC000000000C00003;
 			else if (i <= 42 && i > 40)
-				num[i] = 0xFFFFFFFF00C03003; // 5
+				num[i] = 0xFFFFFFFF00C03003;
 			else if (i <= 50 && i > 42)
 				num[i] = 0xC000000300C03003;
 			else if (i <= 52 && i > 50)
-				num[i] = 0xC03FFC0300FFF003; // 6
+				num[i] = 0xC03FFC0300FFF003;
 			else if (i <= 60 && i > 52)
 				num[i] = 0xC0000C0000000003;
 			else if (i <= 62 && i > 60)
-				num[i] = 0xFFF00FFFFFFFF003; // 7
+				num[i] = 0xFFF00FFFFFFFF003;
 			else if (i <= 70 && i > 62)
 				num[i] = 0xC0000C0000003003;
 			else if (i <= 72 && i > 70)
-				num[i] = 0xFFF00C0300FFF003; // 8
+				num[i] = 0xFFF00C0300FFF003;
 			else if (i <= 80 && i > 72)
 				num[i] = 0xC0300C0300000003;
 			else if (i <= 82 && i > 80)
-				num[i] = 0xC0300FFF00FFFFFF; // 9
+				num[i] = 0xC0300FFF00FFFFFF;
 			else if (i <= 90 && i > 82)
 				num[i] = 0xC030000300C00003;
 			else if (i <= 92 && i > 90)
-				num[i] = 0xC03FF00300003003; // 10
+				num[i] = 0xC03FF00300003003;
 			else if (i <= 100 && i > 92)
 				num[i] = 0xC000000300003003;
 			else if (i <= 102 && i > 100)
-				num[i] = 0xC03FFFFFFFFFFFFF; // 11
+				num[i] = 0xC03FFFFFFFFFFFFF;
 			else if (i <= 110 && i > 102)
 				num[i] = 0xC000000000000003;
 			else if (i <= 112 && i > 110)
-				num[i] = 0xFFFFFFFFFFFFF003; // 12
+				num[i] = 0xFFFFFFFFFFFFF003;
 			else if (i <= 117 && i > 112)
 				num[i] = 0xC0000C0000003003;
 			else if (i <= 120 && i >= 117)
@@ -313,6 +326,7 @@ void hard(uint64_t num[128])
 	}
 }
 
+// function for showing maze on the screen
 void draw_maze(void)
 {
 	lcd_clear();
@@ -452,6 +466,7 @@ void draw_maze(void)
 	}
 }
 
+// this function calls the method (easy/middle/hard) to show maze on the screen
 void fill_maze_array(void)
 {
 	if (level == 1)
@@ -468,22 +483,24 @@ void fill_maze_array(void)
 	}
 	else if (level == 4)
 	{
-		level = (rand() % 3) + 1;
+		level = (rand() % 3) + 1; // get random number from 1 to 3
 		fill_maze_array();
 	}
 }
 
+// this funtion gets bit at the particular position of the maze
 int get_bit_at(int x, int y)
 {
 	if (x < 0 || x >= 64 || y < 0 || y >= 128)
 	{
 		return 0;
 	}
-	uint64_t row_value = maze_representation[y];
-	int bit_position = 63 - x;
-	return (row_value >> bit_position) & 1;
+	uint64_t row_value = maze_representation[y]; // get row 
+	int bit_position = 63 - x; // get position
+	return (row_value >> bit_position) & 1; 
 }
 
+// move the player up
 void move_up()
 {
 	if (!get_bit_at(x_position + 3, y_position - 2) &&
@@ -496,6 +513,7 @@ void move_up()
 	}
 }
 
+// move the player down
 void move_down()
 {
 	if (!get_bit_at(x_position - 3, y_position - 2) &&
@@ -508,6 +526,7 @@ void move_down()
 	}
 }
 
+// move the player right
 void move_right()
 {
 	if (!get_bit_at(x_position + 2, y_position + 3) &&
@@ -520,6 +539,7 @@ void move_right()
 	}
 }
 
+// move the player left
 void move_left()
 {
 	if (!get_bit_at(x_position + 2, y_position - 3) &&
@@ -532,11 +552,14 @@ void move_left()
 	}
 }
 
+// change the position of the player depending on the position of the joystick
 void change_player_position(void)
 {
+	// read the values from joystick for x and y
 	unsigned int joystick_x = Read_Adc_Data(3) / 16;
 	unsigned int joystick_y = 127 - Read_Adc_Data(4) / 8;
 
+	// if joystick head is tilted more than the JOYSTICK_DEAD_ZONE then move
 	if (abs(joystick_x - 31) > JOYSTICK_DEAD_ZONE)
 	{
 		if (joystick_x > 31)
@@ -544,6 +567,7 @@ void change_player_position(void)
 		else
 			move_down();
 	}
+	// if joystick head is tilted more than the JOYSTICK_DEAD_ZONE then move
 	if (abs(joystick_y - 63) > JOYSTICK_DEAD_ZONE)
 	{
 		if (joystick_y > 63)
@@ -558,11 +582,13 @@ void change_player_position(void)
 															 : y_position;
 }
 
+// if player at the "finish" position then finish the round
 int check_win(void)
 {
 	return ((x_position == 0 || x_position == 1) && (y_position >= 118 && y_position <= 124));
 }
 
+// function to show win
 void draw_win(void)
 {
 	lcd_clear();
@@ -571,7 +597,7 @@ void draw_win(void)
 	lcd_string(3, 2, "Congratulations!");
 	lcd_string(4, 6, "You Won!");
 	char score_text[20];
-	sprintf(score_text, "Time %d seconds", time_spent_s);
+	sprintf(score_text, "Time %d seconds", time_spent_s); // show seconds that spent during round
 	lcd_string(5, 3, score_text);
 	_delay_ms(2000);
 
@@ -579,6 +605,15 @@ void draw_win(void)
 	ScreenBuffer_clear();
 }
 
+// after the level is selected, this function is called
+// it does
+// - clear screen
+// - show maze
+// - show player
+// - change player position
+// - check if player won
+// - check sensor (if pressed -> then finish round)
+// - if player won then show win screen
 void play_level(void)
 {
 	int won = 0;
@@ -603,6 +638,7 @@ void play_level(void)
 	y_position = 6;
 }
 
+// interrupt for resetting the game
 void add_interrupt(void)
 {
 	EICRA = 1 << ISC01;
@@ -611,6 +647,7 @@ void add_interrupt(void)
 	sei();
 }
 
+// reset game
 ISR(INT0_vect)
 {
 	x_position = 60;
@@ -623,6 +660,7 @@ ISR(INT0_vect)
 	main_project();
 }
 
+// main loop
 void main_project(void)
 {
 	unsigned int data = 31;
