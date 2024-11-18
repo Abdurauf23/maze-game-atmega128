@@ -666,7 +666,7 @@ void main_project(void)
 	unsigned int data = 31;
 	init_clear();
 	show_banner();
-	_delay_ms(1000);
+	_delay_ms(5000);
 	while (1)
 	{
 		draw_levels();
